@@ -1,6 +1,7 @@
 # primer_app_flutter2
 
-A new Flutter project.
+Este el codigo de mi primera App para Flutter.
+Author:yafet.
 
 ## Getting Started
 
