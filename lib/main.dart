@@ -32,21 +32,26 @@ class MyApp extends StatelessWidget {
 class MyAppState extends ChangeNotifier{
   var current = WordPair.random();
 
-
   var favoritos = <WordPair> [];
 
+  var historial = <WordPair> [];
 
-  void getSiguiente() {
+  GlobalKey? histotialListKey;
+
+  void getSiguiente () {
+    historial.insert(0, current);
     current = WordPair.random();
+    var animatedList = histotialListKey?.currentState as AnimatedListState?;
+    animatedList?.insertItem(0);
     notifyListeners();
-  }
+  } 
 
-
-  void toggleFavorito(){
-    if(favoritos.contains(current)){
-      favoritos.remove(current);
+  void toggleFavorito(WordPair? idea){
+    idea = idea?? current;
+    if(favoritos.contains(idea)){
+      favoritos.remove(idea);
     } else {
-      favoritos.add(current);
+      favoritos.add(idea);
     }
     notifyListeners();
   }
@@ -140,7 +145,7 @@ class BigCard extends StatelessWidget {
         child: Text(
           idea.asLowerCase,
           style: textStyle,
-          semanticsLabel: "${idea.first} ${idea.second}", //se leera cla palabra
+          semanticsLabel: "${idea.first} ${idea.second}", //se leera la palabra
         ),
 
 
@@ -172,13 +177,15 @@ class GeneratorPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Expanded(flex: 3, child: HistotialListView()),
+            SizedBox(height: 20),
             BigCard(idea: appState.current),
-            SizedBox(height: 20.0),
+            SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton.icon(onPressed: () {
-                  appState.toggleFavorito();
+                  appState.toggleFavorito(idea);
                 },
                 icon: Icon(icon),
                 label: Text('Me Gusta'),
@@ -191,6 +198,7 @@ class GeneratorPage extends StatelessWidget {
                 ),
               ],
             ),
+            Spacer(flex: 2)
           ],
         ),
       );
@@ -221,9 +229,64 @@ class FavoritosPage extends StatelessWidget {
             leading: Icon(Icons.favorite),
             title: Text(name.asLowerCase),
         ),
-
-        
       ],
     );
   }
 }
+
+class HistotialListView extends StatefulWidget {
+  const HistotialListView({Key? key}) : super(key: key);
+
+  @override
+  State<HistotialListView> createState() => _HistotialListViewState();
+}
+
+class _HistotialListViewState extends State<HistotialListView> {
+
+  final _key = GlobalKey();
+
+  static const Gradient _maskingGradient = LinearGradient(
+    colors: [Colors.transparent, Colors.black],
+    stops: [0.0, 0.5],
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+
+    final appState = context .watch<MyAppState>();
+    appState.histotialListKey = _key;
+
+    return ShaderMask(
+      shaderCallback: (bounds) => _maskingGradient.createShader(bounds),
+      blendMode: BlendMode.dstIn,
+      child: AnimatedList(
+        key: _key,
+        reverse: true,
+        padding: EdgeInsets.only(top: 100.0),
+        initialItemCount: appState.historial.length,
+        itemBuilder: (context, index, animation) {
+          final idea = appState.historial[index];
+          return SizeTransition(
+            sizeFactor: animation,
+            child: Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  appState.toggleFavorito(idea);
+                },
+                icon: appState.favoritos.contains(idea) ? Icon(Icons.favorite, size: 12.0) : SizedBox(), 
+                label: Text(
+                  idea.asLowerCase,
+                  semanticsLabel: idea.asPascalCase
+                ),
+              ),
+            ), 
+          );
+        }
+      ),
+    );
+  }
+}
+
+
