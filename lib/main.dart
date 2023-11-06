@@ -28,7 +28,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
 class MyAppState extends ChangeNotifier{
   var current = WordPair.random();
 
@@ -36,15 +35,39 @@ class MyAppState extends ChangeNotifier{
 
   var historial = <WordPair> [];
 
+  var index = -1;
+
   GlobalKey? histotialListKey;
 
   void getSiguiente () {
-    historial.insert(0, current);
-    current = WordPair.random();
-    var animatedList = histotialListKey?.currentState as AnimatedListState?;
-    animatedList?.insertItem(0);
+    if (index > 0) {
+      -- index;
+      current = historial.elementAt(index);
+    } else {
+      if (!historial.contains(current)) {
+        historial.insert(0, current);
+        var animatedList = histotialListKey?.currentState as AnimatedListState?;
+        animatedList?.insertItem(0);
+      }
+      current = WordPair.random();
+      index = -1;
+    }
     notifyListeners();
-  } 
+  }
+
+  void getAnterior() {
+    if (index < historial.length-1) {
+      if (index == -1) {
+        historial.insert(0, current);
+        var animatedList = histotialListKey?.currentState as AnimatedListState?;
+        animatedList?.insertItem(0);
+        ++index;
+      }
+      ++index;
+      current = historial.elementAt(index);
+    }
+    notifyListeners();
+  }  
 
   void toggleFavorito(WordPair? idea){
     idea = idea?? current;
@@ -53,6 +76,11 @@ class MyAppState extends ChangeNotifier{
     } else {
       favoritos.add(idea);
     }
+    notifyListeners();
+  }
+
+  void removeFavorito([WordPair? name]){
+    favoritos.remove(name);
     notifyListeners();
   }
 }
@@ -83,43 +111,76 @@ class _MyHomePageState extends State<MyHomePage> {
         throw UnimplementedError('No hay un widget para: $selectedIndex');
     }  
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Scaffold(
-          body: Row(
-            children: [
-              SafeArea(
-                child: NavigationRail(
-                  extended: constraints.maxWidth >= 600,
-                  destinations: const [
-                    NavigationRailDestination(
-                      icon: Icon(Icons.home),
-                      label: Text('Inicio')
-                    ),
-                    NavigationRailDestination(
-                      icon: Icon(Icons.favorite),
-                      label: Text('Favoritos')
-                    ),
-                  ],
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: (value) {
-                    setState(() {
-                      selectedIndex = value;
-                    });
-                  },
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  child: page,
-                )
-              )
-            ],
-          )
-        );
-      }
-    );
+    return Scaffold(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+            if (constraints.maxWidth >= 450) {
+              return Row(
+                children: [
+                  SafeArea(
+                    child: NavigationRail(
+                      extended: constraints.maxWidth >= 600, 
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.home),
+                          label: Text('Home')
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.favorite),
+                          label: Text('Favoritos')
+                        ),
+                      ],
+                      selectedIndex: selectedIndex,
+                      onDestinationSelected: (value) {
+                        setState(() {
+                          selectedIndex = value;
+                        });
+                      },
+                    )
+                  ),
+                  Expanded(
+                    child: Container(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      child: page,
+                    )
+                  ),
+                ],
+              );
+            } else {
+              return Column(
+                children: [
+                  Expanded(
+                    child: Container(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      child: page,
+                    )
+                  ),
+                  SafeArea(
+                    child: BottomNavigationBar(
+                      items: const [
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.home),
+                          label: 'Home'
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.favorite),
+                          label: 'Favoritos'
+                        )
+                      ],
+                      currentIndex: selectedIndex,
+                      onTap: (value) {
+                        setState(() {
+                          selectedIndex = value;
+                        });
+                      },
+                    )
+                  )
+                ],
+              );
+            }
+        }
+      ),
+    );    
   }
 }
 
@@ -192,6 +253,12 @@ class GeneratorPage extends StatelessWidget {
                 ),
                 SizedBox(width: 10.0),
                 ElevatedButton(onPressed: () {
+                appState.getAnterior();
+                },
+                child: Text('Anterior'),
+                ),
+                SizedBox(width: 10.0),
+                ElevatedButton(onPressed: () {
                   appState.getSiguiente();
                 },
                 child: Text('Siguiente'),
@@ -217,17 +284,33 @@ class FavoritosPage extends StatelessWidget {
       return Center(child: Text('Aun no hay fa0voritos'));
     }
 
-    return ListView(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: EdgeInsets.all(20.0),
           child: Text('Se han elegido ${appState.favoritos.length} favoritos'),
         ),
-
-        for (var name in appState.favoritos)
-        ListTile(
-            leading: Icon(Icons.favorite),
-            title: Text(name.asLowerCase),
+        Expanded(
+          child: GridView(
+            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 400,
+              childAspectRatio: 400 / 80
+            ),
+            children: [
+              for (var name in appState.favoritos)
+              ListTile(
+                  leading: IconButton(
+                    icon: Icon(Icons.delete_outline, semanticLabel: 'Eliminar'),
+                    color: Theme.of(context).colorScheme.primary,
+                    onPressed: () {
+                      appState.removeFavorito(name);
+                    },
+                  ),
+                  title: Text(name.asLowerCase),
+              ),
+            ],
+          ),
         ),
       ],
     );
